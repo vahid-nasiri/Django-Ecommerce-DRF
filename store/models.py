@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.core.validators import MinValueValidator
 from django.db import models
+from .validators import validate_file_size
 
 
 class Collection(models.Model):
@@ -29,7 +30,7 @@ class Promotion(models.Model):
 
 class Product(models.Model):
     title = models.CharField(max_length=255)
-    slug = models.SlugField()
+    slug = models.SlugField(blank=True, null=True)
     description = models.TextField(null=True, blank=True)
     unit_price = models.DecimalField(
         max_digits=6,
@@ -43,11 +44,18 @@ class Product(models.Model):
         Collection, on_delete=models.PROTECT, related_name='products')
     promotions = models.ManyToManyField(Promotion, blank=True)
 
+    class Meta:
+        ordering = ['title']
+
     def __str__(self) -> str:
         return self.title
 
-    class Meta:
-        ordering = ['title']
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='store/images',
+                              validators=[validate_file_size])
 
 
 class Customer(models.Model):
@@ -61,7 +69,7 @@ class Customer(models.Model):
     birth_date = models.DateField(null=True, blank=True)
     membership = models.CharField(
         choices=Membership.choices, max_length=1, default=Membership.BRONZE)
-    
+
     class Meta:
         ordering = ['user__first_name', 'user__last_name']
         permissions = [
@@ -92,6 +100,7 @@ class Order(models.Model):
         PENDING = 'P', 'Pending'
         COMPLETE = 'C', 'Complete'
         FAILED = 'F', 'Failed'
+
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
         choices=PaymentStatus.choices, max_length=1, default=PaymentStatus.PENDING)
@@ -103,6 +112,9 @@ class Order(models.Model):
     class Meta:
         permissions = [
             ('cancel_order', 'Can cancel order')
+        ]
+        indexes = [
+            models.Index(fields=['id'])
         ]
 
 
@@ -138,4 +150,3 @@ class Review(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     date = models.DateField(auto_now_add=True)
-

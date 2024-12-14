@@ -6,7 +6,7 @@ from django.http import HttpRequest
 from django.utils.html import format_html
 from django.urls import reverse
 from urllib.parse import urlencode
-from .models import Product, Collection, Customer, Order, OrderItem, Cart, CartItem
+from .models import Product, Collection, Customer, Order, OrderItem, Cart, CartItem, ProductImage
 
 
 class InventoryFilter(admin.SimpleListFilter):
@@ -23,10 +23,22 @@ class InventoryFilter(admin.SimpleListFilter):
             return queryset.filter(inventory__lt=10)
 
 
+class ProductImageInline(admin.TabularInline):
+    extra = 0
+    model = ProductImage
+    readonly_fields = ['thumbnail']
+
+    def thumbnail(self, instance: ProductImage):
+        if instance.image.name != '':
+            return format_html(f'<img src="{instance.image.url}" class="thumbnail"')
+        return ''
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ['collection']
     actions = ['clear_inventory']
+    inlines = [ProductImageInline]
     prepopulated_fields = {
         'slug': ['title']
     }
@@ -55,6 +67,11 @@ class ProductAdmin(admin.ModelAdmin):
             messages.ERROR
         )
 
+    class Media:
+        css = {
+            'all': ['store/styles.css']
+        }
+
 
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
@@ -81,7 +98,8 @@ class CustomerAdmin(admin.ModelAdmin):
     list_per_page = 10
     ordering = ['user__first_name', 'user__last_name']
     list_select_related = ['user']
-    search_fields = ['user__first_name__istartswith', 'user__last_name__istartswith']
+    search_fields = ['user__first_name__istartswith',
+                     'user__last_name__istartswith']
 
     def orders(self, customer: Customer):
         url = (reverse('admin:store_order_changelist') +

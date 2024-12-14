@@ -118,7 +118,7 @@ ipython_config.py
 __pypackages__/
 
 # Celery stuff
-celerybeat-schedule
+celerybeat-schedule*
 celerybeat.pid
 
 # SageMath parsed files
@@ -132,7 +132,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-db/
+
+
 
 # Spyder project settings
 .spyderproject
@@ -178,3 +179,6 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 .dockerignore
 .DS_Store
+.python-version
+/media/
+/static/

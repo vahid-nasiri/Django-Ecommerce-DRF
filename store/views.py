@@ -1,20 +1,21 @@
+from django.core.mail import mail_admins, send_mail, send_mass_mail, BadHeaderError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.response import Response
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, UpdateModelMixin
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, DjangoModelPermissions, DjangoModelPermissionsOrAnonReadOnly
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from .filters import ProductFilter
-from .models import Collection, Product, Cart, CartItem, OrderItem, Review, Customer, Order
+from .models import Collection, Product, Cart, CartItem, OrderItem, Review, Customer, Order, ProductImage
 from .pagination import DefaultPagination
-from .permissions import IsAdminOrReadOnly, FullDjangoModelPermissions, ViewCustomerHistoryPermission
-from .serializer import ProductSerializer, CollectionSerializer, CartSerializer, CartItemSerializer, AddCartItemSerializer, UpdateCartItemSerializer, ReviewSerializer, CustomerSerializer, OrderSerializer, CreateOrderSerializer, UpdateOrderSerializer
+from .permissions import IsAdminOrReadOnly, ViewCustomerHistoryPermission
+from .serializer import ProductSerializer, CollectionSerializer, CartSerializer, CartItemSerializer, AddCartItemSerializer, UpdateCartItemSerializer, ReviewSerializer, CustomerSerializer, OrderSerializer, CreateOrderSerializer, UpdateOrderSerializer, ProductImageSerializer
 
 
 class ProductViewSet(ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related('images').all()
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductFilter
@@ -31,6 +32,18 @@ class ProductViewSet(ModelViewSet):
             return Response({'error': 'Product cannot be deleted because it is associated with an order item.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         return super().destroy(request, *args, **kwargs)
+
+
+class ProductImageViewSet(ModelViewSet):
+    serializer_class = ProductImageSerializer
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product_id=self.kwargs['product_pk'])
+
+    def get_serializer_context(self):
+        return {
+            'product_id': self.kwargs['product_pk']
+        }
 
 
 class CollectionViewSet(ModelViewSet):
@@ -140,8 +153,8 @@ class OrderViewSet(ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-            return Order.objects.all()
+            return Order.objects.prefetch_related('items').all()
         customer_id = Customer.objects \
                               .only('id') \
                               .get(user_id=user.id)
-        return Order.objects.filter(customer_id=customer_id)
+        return Order.objects.select_related('customer').filter(customer_id=customer_id)
